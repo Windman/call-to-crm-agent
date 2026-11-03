@@ -1,6 +1,14 @@
 import json
 from dataclasses import dataclass
 
+"""
+Описание инструмента:
+что делает (ищет существующий контакт в CRM);
+когда вызывать (до создания контакта, чтобы не завести дубль);
+что передавать (лучше телефон: он уникальнее имени);
+что вернёт (контакт или null, если не найден).
+"""
+
 
 @dataclass
 class ToolResult:
@@ -20,19 +28,59 @@ def find_contact(query: str) -> dict | None:
     return None
 
 
+def create_contact(
+    name: str, phone: str, email: str | None = None, company: str | None = None
+) -> dict:
+    new_contact = {
+        "id": len(FAKE_CONTACTS) + 1,
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "company": company,
+    }
+    FAKE_CONTACTS.append(new_contact)
+    return new_contact
+
+
+def log_call_note(contact_id: int, summary: str) -> dict:
+    call_note = {
+        "id": len(FAKE_NOTES) + 1,
+        "contact_id": contact_id,
+        "summary": summary,
+    }
+    FAKE_NOTES.append(call_note)
+    return call_note
+
+
+def create_task(contact_id: int, title: str, due_date: str) -> dict:
+    task = {
+        "id": len(FAKE_TASKS) + 1,
+        "contact_id": contact_id,
+        "title": title,
+        "due_date": due_date,
+    }
+    FAKE_TASKS.append(task)
+    return task
+
+
 def execute_tool(name: str, args: dict) -> ToolResult:
     if name in TOOL_FUNCTIONS:
         try:
             print(f"Executing tool: {name}")
             result = TOOL_FUNCTIONS[name](**args)
-            return ToolResult(text=json.dumps(result))
+            return ToolResult(text=json.dumps(result, ensure_ascii=False))
         except Exception as e:
             return ToolResult(text=f"Tool execution failed: {e!s}", is_error=True)
     else:
         return ToolResult(text=f"Unknown tool: {name}", is_error=True)
 
 
-TOOL_FUNCTIONS = {"find_contact": find_contact}
+TOOL_FUNCTIONS = {
+    "find_contact": find_contact,
+    "create_contact": create_contact,
+    "log_call_note": log_call_note,
+    "create_task": create_task,
+}
 
 TOOLS = [
     {
@@ -48,7 +96,74 @@ TOOLS = [
             },
             "required": ["query"],
         },
-    }
+    },
+    {
+        "name": "create_contact",
+        "description": "Create a new contact in the CRM only if the find_contact return null. When to use: Use this tool when you need to create a new contact in the CRM. What to pass - name and phone number are required, email and company are optional. What is returned - the created contact information in JSON format.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "The name of the contact to create.",
+                },
+                "email": {
+                    "type": "string",
+                    "description": "The email address of the contact to create.",
+                },
+                "phone": {
+                    "type": "string",
+                    "description": "The phone number of the contact to create.",
+                },
+                "company": {
+                    "type": "string",
+                    "description": "The company of the contact to create.",
+                },
+            },
+            "required": ["name", "phone"],
+        },
+    },
+    {
+        "name": "log_call_note",
+        "description": "Log a call note in the CRM. When to use: Use this tool when you need to log a call in the CRM. What to pass - contact_id and summary are required. What is returned - the logged call note information in JSON format with the id",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "contact_id": {
+                    "type": "integer",
+                    "description": "The ID of the contact to log the call note for.",
+                },
+                "summary": {
+                    "type": "string",
+                    "description": "The summary of the call note to log.",
+                },
+            },
+            "required": ["contact_id", "summary"],
+        },
+    },
+    {
+        "name": "create_task",
+        "description": "Create a new task in the CRM. When to use: Use this tool when you need to create a new task in the CRM. What to pass - contact_id, title and due_date are required. What is returned - the created task information in JSON format with the id",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "contact_id": {
+                    "type": "integer",
+                    "description": "The ID of the contact to create the task for.",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "The title of the task to create.",
+                },
+                "due_date": {
+                    "type": "date",
+                    "format": "YYYY-MM-DD",
+                    "description": "The due date of the task to create.",
+                },
+            },
+            "required": ["contact_id", "title", "due_date"],
+        },
+    },
 ]
 
 FAKE_CONTACTS = [
@@ -81,3 +196,6 @@ FAKE_CONTACTS = [
         "company": "Demo Corp.",
     },
 ]
+
+FAKE_NOTES = []
+FAKE_TASKS = []
