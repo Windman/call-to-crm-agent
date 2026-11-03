@@ -86,3 +86,15 @@ def test_create_task_creates_new_task():
     assert not task_result.is_error
     assert task_result.text is not None
     assert "Follow up on project" in task_result.text
+
+
+def test_create_task_with_bad_due_date():
+    task_result = execute_tool(
+        "create_task",
+        {
+            "contact_id": 1,
+            "title": "Follow up on project",
+            "due_date": "Thursday",
+        },
+    )
+    assert task_result.is_error

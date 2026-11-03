@@ -1,5 +1,3 @@
-import json
-
 import anthropic
 from dotenv import load_dotenv
 
@@ -11,5 +9,5 @@ def main() -> None:
     client: anthropic.Anthropic = anthropic.Anthropic()
     run_agent(
         client,
-        "Звонила Анна Смирнова, +995 599 000 111",
+        "Anna Smirnova from Blue Sky called, +995 599 000 111. She’s interested in a plan for a team of 20 people. She asked us to send a commercial proposal and call her back on Thursday.",
     )

@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from datetime import date
 
 """
 Описание инструмента:
@@ -53,6 +54,7 @@ def log_call_note(contact_id: int, summary: str) -> dict:
 
 
 def create_task(contact_id: int, title: str, due_date: str) -> dict:
+    date.fromisoformat(due_date)
     task = {
         "id": len(FAKE_TASKS) + 1,
         "contact_id": contact_id,
@@ -66,8 +68,9 @@ def create_task(contact_id: int, title: str, due_date: str) -> dict:
 def execute_tool(name: str, args: dict) -> ToolResult:
     if name in TOOL_FUNCTIONS:
         try:
-            print(f"Executing tool: {name}")
+            print(f"Executing tool: {name} with args: {args}")
             result = TOOL_FUNCTIONS[name](**args)
+            print(f"Tool {name} executed successfully with result: {result}")
             return ToolResult(text=json.dumps(result, ensure_ascii=False))
         except Exception as e:
             return ToolResult(text=f"Tool execution failed: {e!s}", is_error=True)
@@ -156,9 +159,9 @@ TOOLS = [
                     "description": "The title of the task to create.",
                 },
                 "due_date": {
-                    "type": "date",
-                    "format": "YYYY-MM-DD",
-                    "description": "The due date of the task to create.",
+                    "type": "string",
+                    "format": "date",
+                    "description": "Due date in YYYY-MM-DD format, e.g. 2026-11-05.",
                 },
             },
             "required": ["contact_id", "title", "due_date"],
