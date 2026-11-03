@@ -1,3 +1,13 @@
+import json
+from dataclasses import dataclass
+
+
+@dataclass
+class ToolResult:
+    text: str
+    is_error: bool = False
+
+
 def find_contact(query: str) -> dict | None:
     normalized_query = query.strip().casefold()
     if not normalized_query:
@@ -9,6 +19,20 @@ def find_contact(query: str) -> dict | None:
 
     return None
 
+
+def execute_tool(name: str, args: dict) -> ToolResult:
+    if name in TOOL_FUNCTIONS:
+        try:
+            print(f"Executing tool: {name}")
+            result = TOOL_FUNCTIONS[name](**args)
+            return ToolResult(text=json.dumps(result))
+        except Exception as e:
+            return ToolResult(text=f"Tool execution failed: {e!s}", is_error=True)
+    else:
+        return ToolResult(text=f"Unknown tool: {name}", is_error=True)
+
+
+TOOL_FUNCTIONS = {"find_contact": find_contact}
 
 TOOLS = [
     {
