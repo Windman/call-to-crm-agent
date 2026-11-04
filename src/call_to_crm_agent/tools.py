@@ -68,14 +68,18 @@ def create_task(contact_id: int, title: str, due_date: str) -> dict:
 def execute_tool(name: str, args: dict) -> ToolResult:
     if name in TOOL_FUNCTIONS:
         try:
-            print(f"Executing tool: {name} with args: {args}")
+            print(f"Executing tool: '{name}' with args: '{args}'\r\n")
             result = TOOL_FUNCTIONS[name](**args)
-            print(f"Tool {name} executed successfully with result: {result}")
+            print(f"Tool '{name}' succeeded with result: '{result}'\r\n")
             return ToolResult(text=json.dumps(result, ensure_ascii=False))
         except Exception as e:
-            return ToolResult(text=f"Tool execution failed: {e!s}", is_error=True)
+            print(f"Tool '{name}' execution failed: {e!s}\r\n")
+            return ToolResult(
+                text=f"Tool '{name}' execution failed: {e!s}", is_error=True
+            )
     else:
-        return ToolResult(text=f"Unknown tool: {name}", is_error=True)
+        print(f"Tool '{name}' is unknown\r\n")
+        return ToolResult(text=f"Unknown tool: '{name}'", is_error=True)
 
 
 TOOL_FUNCTIONS = {

@@ -3,15 +3,21 @@ from anthropic.types import Message
 
 from call_to_crm_agent.tools import TOOLS, execute_tool
 
+MODEL = "claude-sonnet-5-5"
+MAX_TOKENS = 4096
+
 
 def run_agent(
-    client: anthropic.Anthropic, transcript: str, max_steps: int = 10
+    client: anthropic.Anthropic,
+    system_prompt: str,
+    transcript: str,
+    max_steps: int = 10,
 ) -> list:
     messages_history = [{"role": "user", "content": transcript}]
 
     for step in range(max_steps):
         tool_results = []
-        model_response = call_to_crm_agent(client, messages_history)
+        model_response = call_to_crm_agent(client, system_prompt, messages_history)
         messages_history.append(
             {"role": "assistant", "content": model_response.content}
         )
@@ -19,6 +25,7 @@ def run_agent(
         for block in model_response.content:
             if block.type == "text":
                 print("text:", block.text)
+                print()
             if block.type == "tool_use":
                 tool_result = execute_tool(block.name, block.input)
                 tool_error = tool_result.is_error
@@ -31,6 +38,8 @@ def run_agent(
                     }
                 )
 
+        print(f"step {step}: stop_reason={model_response.stop_reason}")
+
         if model_response.stop_reason != "tool_use":
             return messages_history
 
@@ -39,9 +48,15 @@ def run_agent(
     raise RuntimeError(f"Agent did not finish in {max_steps} steps")
 
 
-def call_to_crm_agent(client: anthropic.Anthropic, messages: list) -> Message:
+def call_to_crm_agent(
+    client: anthropic.Anthropic, system_prompt: str, messages: list
+) -> Message:
     model_response = client.messages.create(
-        model="claude-sonnet-5-5", tools=TOOLS, max_tokens=1024, messages=messages
+        model=MODEL,
+        tools=TOOLS,
+        max_tokens=MAX_TOKENS,
+        system=system_prompt,
+        messages=messages,
     )
 
     return model_response
