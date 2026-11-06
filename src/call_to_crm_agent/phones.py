@@ -1,7 +1,7 @@
 import phonenumbers
 
 
-def to_e164(phone: str) -> str:
+def to_e164(phone: str) -> phonenumbers.PhoneNumber:
     return phonenumbers.format_number(
         _parse(phone), phonenumbers.PhoneNumberFormat.E164
     )
