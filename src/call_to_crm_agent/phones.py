@@ -11,11 +11,11 @@ def to_search_key(phone: str) -> str:
     return str(_parse(phone).national_number)
 
 
-def _parse(phone) -> phonenumbers.PhoneNumber:
+def _parse(phone: str) -> phonenumbers.PhoneNumber:
     try:
         parsed = phonenumbers.parse(phone, None)
         if not phonenumbers.is_valid_number(parsed):
             raise ValueError(f"Invalid phone number: {phone}")
         return parsed
     except phonenumbers.NumberParseException:
-        raise ValueError(f"Invalid phone number: {phone}")
+        raise ValueError(f"Invalid phone number: {phone}") from None
