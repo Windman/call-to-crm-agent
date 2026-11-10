@@ -18,4 +18,4 @@ def _parse(phone: str) -> phonenumbers.PhoneNumber:
             raise ValueError(f"Invalid phone number: {phone}")
         return parsed
     except phonenumbers.NumberParseException:
-        raise ValueError(f"Invalid phone number: {phone}") from None
+        raise ValueError(f"Error parse phone: {phone}") from None
