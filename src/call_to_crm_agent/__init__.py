@@ -7,6 +7,7 @@ import anthropic
 from dotenv import load_dotenv
 
 from call_to_crm_agent.agent import run_agent
+from call_to_crm_agent.crm import Contact, FakeCRM
 
 
 def main() -> None:
@@ -17,8 +18,23 @@ def main() -> None:
 
     load_dotenv()
     client: anthropic.Anthropic = anthropic.Anthropic()
+
+    crm = FakeCRM(
+        [
+            Contact(
+                id="1",
+                first_name="John",
+                last_name="Doe",
+                phone="+995555123456",
+                email="john.doe@example.com",
+                company="Example Inc.",
+            )
+        ]
+    )
+
     run_agent(
         client,
+        crm,
         inspect.cleandoc(build_system_prompt()),
         transcript,
     )

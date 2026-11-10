@@ -1,6 +1,7 @@
 import anthropic
 from anthropic.types import Message
 
+from call_to_crm_agent.crm import CRM
 from call_to_crm_agent.tools import TOOLS, execute_tool
 
 MODEL = "claude-sonnet-5-5"
@@ -9,6 +10,7 @@ MAX_TOKENS = 4096
 
 def run_agent(
     client: anthropic.Anthropic,
+    crm: CRM,
     system_prompt: str,
     transcript: str,
     max_steps: int = 10,
@@ -27,7 +29,8 @@ def run_agent(
                 print("text:", block.text)
                 print()
             if block.type == "tool_use":
-                tool_result = execute_tool(block.name, block.input)
+                print(f"Executing tool: '{block.name}' with args: '{block.input}'")
+                tool_result = execute_tool(crm, block.name, block.input)
                 tool_error = tool_result.is_error
                 tool_results.append(
                     {

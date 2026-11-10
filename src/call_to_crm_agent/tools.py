@@ -1,14 +1,8 @@
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date
 
-"""
-Описание инструмента:
-что делает (ищет существующий контакт в CRM);
-когда вызывать (до создания контакта, чтобы не завести дубль);
-что передавать (лучше телефон: он уникальнее имени);
-что вернёт (контакт или null, если не найден).
-"""
+from call_to_crm_agent.crm import CRM
 
 
 @dataclass
@@ -17,68 +11,42 @@ class ToolResult:
     is_error: bool = False
 
 
-def find_contact(query: str) -> dict | None:
-    normalized_query = query.strip().casefold()
-    if not normalized_query:
-        return None
-
-    for contact in FAKE_CONTACTS:
-        if any(normalized_query in str(value).casefold() for value in contact.values()):
-            return contact
-
-    return None
+def find_contact(crm: CRM, phone: str) -> list[dict]:
+    return [asdict(c) for c in crm.find_contacts(phone)]
 
 
 def create_contact(
-    name: str, phone: str, email: str | None = None, company: str | None = None
+    crm: CRM,
+    first_name: str,
+    last_name: str,
+    phone: str,
+    email: str | None = None,
+    company: str | None = None,
 ) -> dict:
-    new_contact = {
-        "id": len(FAKE_CONTACTS) + 1,
-        "name": name,
-        "email": email,
-        "phone": phone,
-        "company": company,
-    }
-    FAKE_CONTACTS.append(new_contact)
-    return new_contact
+    return asdict(crm.create_contact(first_name, last_name, phone, email, company))
 
 
-def log_call_note(contact_id: int, summary: str) -> dict:
-    call_note = {
-        "id": len(FAKE_NOTES) + 1,
-        "contact_id": contact_id,
-        "summary": summary,
-    }
-    FAKE_NOTES.append(call_note)
-    return call_note
+def log_call_note(crm: CRM, contact_id: str, summary: str) -> dict:
+    return asdict(crm.log_call_note(contact_id, summary))
 
 
-def create_task(contact_id: int, title: str, due_date: str) -> dict:
-    date.fromisoformat(due_date)
-    task = {
-        "id": len(FAKE_TASKS) + 1,
-        "contact_id": contact_id,
-        "title": title,
-        "due_date": due_date,
-    }
-    FAKE_TASKS.append(task)
-    return task
+def create_task(crm: CRM, contact_id: str, title: str, due_date: str) -> dict:
+    return asdict(crm.create_task(contact_id, title, date.fromisoformat(due_date)))
 
 
-def execute_tool(name: str, args: dict) -> ToolResult:
+def execute_tool(crm: CRM, name: str, args: dict) -> ToolResult:
     if name in TOOL_FUNCTIONS:
         try:
-            print(f"Executing tool: '{name}' with args: '{args}'\r\n")
-            result = TOOL_FUNCTIONS[name](**args)
-            print(f"Tool '{name}' succeeded with result: '{result}'\r\n")
-            return ToolResult(text=json.dumps(result, ensure_ascii=False))
+            result = TOOL_FUNCTIONS[name](crm, **args)
+            print(f"Tool '{name}' succeeded with result: '{result}'")
+            return ToolResult(text=json.dumps(result, ensure_ascii=False, default=str))
         except Exception as e:
-            print(f"Tool '{name}' execution failed: {e!s}\r\n")
+            print(f"Tool '{name}' execution failed: {e!s}")
             return ToolResult(
                 text=f"Tool '{name}' execution failed: {e!s}", is_error=True
             )
     else:
-        print(f"Tool '{name}' is unknown\r\n")
+        print(f"Tool '{name}' is unknown")
         return ToolResult(text=f"Unknown tool: '{name}'", is_error=True)
 
 
@@ -92,27 +60,31 @@ TOOL_FUNCTIONS = {
 TOOLS = [
     {
         "name": "find_contact",
-        "description": "Search for contact information in the CRM based on a query string. When to use: Use this tool when you need to find contact before creating the contact information in the CRM based on a query string. What to pass - phone number is better then the name. What is returned - contact information in JSON format. contact or null if not found.",
+        "description": "Find existing CRM contacts by phone number. Call this first, before create_contact, to avoid duplicates. Pass the phone number from the call, ideally with country code. Returns a JSON list of matching contacts; empty list if none",
         "input_schema": {
             "type": "object",
             "properties": {
-                "query": {
+                "phone": {
                     "type": "string",
-                    "description": "The query to search for contact information.",
+                    "description": "Phone number in any format, e.g. +995 555 12 34 56.",
                 },
             },
-            "required": ["query"],
+            "required": ["phone"],
         },
     },
     {
         "name": "create_contact",
-        "description": "Create a new contact in the CRM only if the find_contact return null. When to use: Use this tool when you need to create a new contact in the CRM. What to pass - name and phone number are required, email and company are optional. What is returned - the created contact information in JSON format.",
+        "description": "Create a new CRM contact. Call only if find_contact returned an empty list. first_name, last_name and phone are required; email and company are optional. Returns the created contact as JSON, including its id.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "name": {
+                "first_name": {
                     "type": "string",
-                    "description": "The name of the contact to create.",
+                    "description": "Given name, in Latin script.",
+                },
+                "last_name": {
+                    "type": "string",
+                    "description": "Family name, in Latin script.",
                 },
                 "email": {
                     "type": "string",
@@ -127,7 +99,7 @@ TOOLS = [
                     "description": "The company of the contact to create.",
                 },
             },
-            "required": ["name", "phone"],
+            "required": ["first_name", "last_name", "phone"],
         },
     },
     {
@@ -137,7 +109,7 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "contact_id": {
-                    "type": "integer",
+                    "type": "string",
                     "description": "The ID of the contact to log the call note for.",
                 },
                 "summary": {
@@ -155,7 +127,7 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "contact_id": {
-                    "type": "integer",
+                    "type": "string",
                     "description": "The ID of the contact to create the task for.",
                 },
                 "title": {
@@ -172,37 +144,3 @@ TOOLS = [
         },
     },
 ]
-
-FAKE_CONTACTS = [
-    {
-        "id": 1,
-        "name": "John Doe",
-        "email": "john.doe@example.com",
-        "phone": "+995555123456",
-        "company": "Example Inc.",
-    },
-    {
-        "id": 2,
-        "name": "Jane Smith",
-        "email": "jane.smith@example.com",
-        "phone": "+0987654321",
-        "company": "Sample Co.",
-    },
-    {
-        "id": 3,
-        "name": "John Lord",
-        "email": "jl@example.com",
-        "phone": "+1111111111",
-        "company": "Test Ltd.",
-    },
-    {
-        "id": 4,
-        "name": "Jonny Depp",
-        "email": "jonny.depp@example.com",
-        "phone": "+2222222222",
-        "company": "Demo Corp.",
-    },
-]
-
-FAKE_NOTES = []
-FAKE_TASKS = []

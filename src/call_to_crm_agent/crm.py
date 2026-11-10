@@ -74,7 +74,7 @@ class FakeCRM:
             id=str(len(self.contacts) + 1),
             first_name=first_name,
             last_name=last_name,
-            phone=str(to_e164(phone)),
+            phone=to_e164(phone),
             email=email,
             company=company,
         )

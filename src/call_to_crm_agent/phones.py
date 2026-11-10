@@ -1,7 +1,7 @@
 import phonenumbers
 
 
-def to_e164(phone: str) -> phonenumbers.PhoneNumber:
+def to_e164(phone: str) -> str:
     return phonenumbers.format_number(
         _parse(phone), phonenumbers.PhoneNumberFormat.E164
     )
@@ -18,4 +18,4 @@ def _parse(phone: str) -> phonenumbers.PhoneNumber:
             raise ValueError(f"Invalid phone number: {phone}")
         return parsed
     except phonenumbers.NumberParseException:
-        raise ValueError(f"Error parse phone: {phone}") from None
+        raise ValueError(f"Invalid phone number: {phone}") from None
