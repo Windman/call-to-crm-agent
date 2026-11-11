@@ -1,4 +1,5 @@
 import inspect
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -8,6 +9,7 @@ from dotenv import load_dotenv
 
 from call_to_crm_agent.agent import run_agent
 from call_to_crm_agent.crm import Contact, FakeCRM
+from call_to_crm_agent.hubspot import HubSpotClient, HubSpotCRM
 
 
 def main() -> None:
@@ -19,18 +21,14 @@ def main() -> None:
     load_dotenv()
     client: anthropic.Anthropic = anthropic.Anthropic()
 
-    crm = FakeCRM(
-        [
-            Contact(
-                id="1",
-                first_name="John",
-                last_name="Doe",
-                phone="+995555123456",
-                email="john.doe@example.com",
-                company="Example Inc.",
-            )
-        ]
-    )
+    crm_type = os.environ.get("CRM", "hubspot")
+
+    if crm_type == "fake":
+        crm = build_fake_crm()
+    elif crm_type == "hubspot":
+        crm = build_hubspot_crm(os.environ.get("HUBSPOT_TOKEN"))
+    else:
+        sys.exit(f"Unknown CRM={crm_type!r}, expected 'fake' or 'hubspot'")
 
     run_agent(
         client,
@@ -220,3 +218,25 @@ def build_system_prompt() -> str:
         Keep the report concise and factual.
 
         Only report actions that were successfully completed and confirmed by the CRM tools."""
+
+
+def build_hubspot_crm(token: str | None) -> HubSpotCRM:
+    if token is None:
+        sys.exit("No Hubspot token found")
+
+    return HubSpotCRM(HubSpotClient(token=token))
+
+
+def build_fake_crm() -> FakeCRM:
+    return FakeCRM(
+        [
+            Contact(
+                id="1",
+                first_name="John",
+                last_name="Doe",
+                phone="+995555123456",
+                email="john.doe@example.com",
+                company="Example Inc.",
+            )
+        ]
+    )

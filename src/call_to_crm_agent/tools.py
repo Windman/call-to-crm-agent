@@ -41,9 +41,10 @@ def execute_tool(crm: CRM, name: str, args: dict) -> ToolResult:
             print(f"Tool '{name}' succeeded with result: '{result}'")
             return ToolResult(text=json.dumps(result, ensure_ascii=False, default=str))
         except Exception as e:
-            print(f"Tool '{name}' execution failed: {e!s}")
+            print(f"Tool '{name}' execution failed: {type(e).__name__}: {e}")
             return ToolResult(
-                text=f"Tool '{name}' execution failed: {e!s}", is_error=True
+                text=f"Tool '{name}' execution failed: {type(e).__name__}: {e}",
+                is_error=True,
             )
     else:
         print(f"Tool '{name}' is unknown")
