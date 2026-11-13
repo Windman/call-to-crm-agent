@@ -20,6 +20,12 @@ def run_agent(
     for step in range(max_steps):
         tool_results = []
         model_response = call_to_crm_agent(client, system_prompt, messages_history)
+
+        if model_response.stop_reason == "max_tokens":
+            raise RuntimeError(
+                f"The max tokens threshold has been reached on step: {step}. Maximum limin is: {MAX_TOKENS}, "
+            )
+
         messages_history.append(
             {"role": "assistant", "content": model_response.content}
         )
