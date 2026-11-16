@@ -38,6 +38,12 @@ def run_agent(
                 print(f"Executing tool: '{block.name}' with args: '{block.input}'")
                 tool_result = execute_tool(crm, block.name, block.input)
                 tool_error = tool_result.is_error
+
+                if tool_error:
+                    print(f"Tool error: {tool_result.text}")
+                else:
+                    print(f"Tool success: {tool_result.text}")
+
                 tool_results.append(
                     {
                         "type": "tool_result",

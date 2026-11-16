@@ -1,3 +1,4 @@
+import html
 from datetime import UTC, date, datetime, time
 from zoneinfo import ZoneInfo
 
@@ -8,6 +9,8 @@ from call_to_crm_agent.phones import to_e164, to_search_key
 
 TASK_DUE_TIME = time(9)
 DEFAULT_TIMEZONE = ZoneInfo("Asia/Tbilisi")
+ASSOCIATIONTYPEID_NOTE = 202
+ASSOCIATIONTYPEID_TASK = 204
 
 
 def to_contact(result: dict) -> Contact:
@@ -31,7 +34,7 @@ def to_note(result: dict, contact_id: str) -> Note:
     return Note(
         id=note_id,
         contact_id=contact_id,
-        summary=properties["hs_note_body"],
+        summary=from_hubspot_note_body(properties["hs_note_body"]),
     )
 
 
@@ -101,7 +104,7 @@ class HubSpotClient:
                     "types": [
                         {
                             "associationCategory": "HUBSPOT_DEFINED",
-                            "associationTypeId": 202,
+                            "associationTypeId": ASSOCIATIONTYPEID_NOTE,
                         }
                     ],
                 }
@@ -128,7 +131,7 @@ class HubSpotClient:
                     "types": [
                         {
                             "associationCategory": "HUBSPOT_DEFINED",
-                            "associationTypeId": 204,
+                            "associationTypeId": ASSOCIATIONTYPEID_TASK,
                         }
                     ],
                 }
@@ -174,7 +177,9 @@ class HubSpotCRM:
 
     def log_call_note(self, contact_id: str, summary: str) -> Note:
         timestamp: str = to_hubspot_timestamp(datetime.now(UTC))
-        result = self.client.create_call_note(contact_id, timestamp, summary)
+        result = self.client.create_call_note(
+            contact_id, timestamp, to_hubspot_note_body(summary)
+        )
         return to_note(result, contact_id)
 
     def create_task(self, contact_id: str, title: str, due_date: date) -> Task:
@@ -189,3 +194,11 @@ def to_hubspot_timestamp(dt: datetime) -> str:
 
 def to_hubspot_task_timestamp(dt: date, timezone: ZoneInfo) -> str:
     return to_hubspot_timestamp(datetime.combine(dt, TASK_DUE_TIME, tzinfo=timezone))
+
+
+def to_hubspot_note_body(text: str) -> str:
+    return html.escape(text).replace("\n", "<br>")
+
+
+def from_hubspot_note_body(text: str) -> str:
+    return html.unescape(text.replace("<br>", "\n"))

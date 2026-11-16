@@ -5,7 +5,9 @@ import pytest
 
 from call_to_crm_agent.hubspot import (
     DEFAULT_TIMEZONE,
+    from_hubspot_note_body,
     to_contact,
+    to_hubspot_note_body,
     to_hubspot_task_timestamp,
     to_hubspot_timestamp,
     to_note,
@@ -120,3 +122,25 @@ def test_to_hubspot_task_timestamp():
         to_hubspot_task_timestamp(date(2026, 11, 13), DEFAULT_TIMEZONE)
         == "1794546000000"
     )
+
+
+def test_to_hubspot_note_body():
+    assert to_hubspot_note_body("R&D <5\nok") == "R&amp;D &lt;5<br>ok"
+
+
+def test_from_hubspot_note():
+    assert (
+        from_hubspot_note_body("Plan suitable for a 20-person team.<br>Pain points:")
+        == "Plan suitable for a 20-person team.\nPain points:"
+    )
+
+
+def test_note_body_round_trip():
+    text = (
+        "R&D team: <5 users\n"
+        "Use </br> or <br> tags?\n"
+        "\"Quotes\" & 'apostrophes'\n"
+        "Анна, Blue Sky"
+    )
+
+    assert from_hubspot_note_body(to_hubspot_note_body(text)) == text

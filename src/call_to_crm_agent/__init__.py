@@ -85,7 +85,7 @@ def build_system_prompt() -> str:
 
         STEP 1: FIND OR CREATE CONTACT
 
-        - Extract the contact's phone number from the transcript or call metadata.
+        - Extract the contact's phone number from the transcript. Find_contact returns a list; an empty list means no match.
         - Normalize the phone number whenever possible.
         - ALWAYS call find_contact first using the phone number.
         - If exactly one matching contact is found, use that existing contact.
@@ -96,7 +96,7 @@ def build_system_prompt() -> str:
         When creating a contact:
         - Use Latin characters for first and last names.
         - Use the official company name in Latin characters whenever available.
-        - Include only information explicitly available in the transcript or metadata.
+        - Include only information explicitly available in the transcript.
         - Do not guess missing information.
 
         STEP 2: CREATE CRM NOTE
@@ -140,7 +140,7 @@ def build_system_prompt() -> str:
 
         STEP 3: CREATE TASKS FOR EVERY COMMITMENT
 
-        After successfully creating the CRM note, review the entire transcript again and identify EVERY agreed action, promise, commitment, or follow-up.
+        After STEP 2, whether or not the note was created, review the entire transcript again and identify EVERY agreed action, promise, commitment, or follow-up.
 
         Create a SEPARATE CRM task for EACH commitment.
 
@@ -158,13 +158,14 @@ def build_system_prompt() -> str:
         1. Never combine multiple independent commitments into one task.
         2. Every task must be linked to the identified CRM contact.
         3. Every task must have a clear and actionable title.
-        4. Every task title and description must be written in English.
+        4. Every task title must be written in English.
         5. Every task must have a specific due date.
         6. Convert relative deadlines into explicit dates (YYYY-MM-DD).
         7. Use the agreed deadline whenever explicitly stated.
         8. If no deadline is specified, assign a reasonable default deadline based on context and urgency.
         9. Document every assumed deadline in the final report.
         10. Never silently discard a commitment because its deadline is missing.
+        11. A preparation task for a scheduled event (demo, meeting, presentation, callback) is due 2 working days before the event, but never earlier than today. A task for the event itself is due on the event day.
 
         If several commitments have different deadlines, create separate tasks with their respective due dates.
 
@@ -174,25 +175,17 @@ def build_system_prompt() -> str:
 
         - Contact first and last names must use Latin characters.
         - Company names must use Latin characters.
-        - CRM notes must be written entirely in English.
-        - CRM task titles must be written entirely in English.
-        - CRM task descriptions must be written entirely in English.
-        - Final execution reports must be written entirely in English.
-
+        
         Preserve official brand and company spellings whenever known.
 
         Do not translate personal names or invent alternative spellings.
 
         ERROR HANDLING AND DATA INTEGRITY
 
-        - Follow the mandatory execution order.
-        - Never intentionally create duplicate contacts.
-        - Never overwrite existing CRM contact information based only on a call transcript.
-        - Never fabricate missing information.
         - Verify tool execution results before reporting success.
         - If an operation fails, do not claim that it was completed.
-        - If a note is created but some tasks fail, report partial completion accurately.
         - Do not repeat successful operations unnecessarily.
+        - If one operation fails, still complete the others: a failed note does not stop the tasks, and a failed task does not stop the remaining tasks. Report the result as partial and name what failed.
 
         FINAL EXECUTION REPORT
 
