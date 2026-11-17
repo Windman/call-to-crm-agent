@@ -1,7 +1,7 @@
 [project]
 name = "call-to-crm-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "LLM agent that turns call transcripts into CRM contacts, notes and follow-up tasks"
 readme = "README.md"
 authors = [
     { name = "Max", email = "maxkvt@gmail.com" }

@@ -20,7 +20,7 @@ def test_find_contact_invalid_phone_returns_error(crm):
     assert result.is_error
 
 
-def test_find_contact_valid_phone_returns_error(crm):
+def test_unknown_phone_returns_empty_list(crm):
     result = execute_tool(crm, "find_contact", {"phone": "+1 650-253-0000"})
     assert json.loads(result.text) == []
 

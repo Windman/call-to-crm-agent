@@ -23,7 +23,7 @@ def run_agent(
 
         if model_response.stop_reason == "max_tokens":
             raise RuntimeError(
-                f"The max tokens threshold has been reached on step: {step}. Maximum limin is: {MAX_TOKENS}, "
+                f"The max tokens threshold has been reached on step: {step}. Maximum limit is: {MAX_TOKENS}, "
             )
 
         messages_history.append(

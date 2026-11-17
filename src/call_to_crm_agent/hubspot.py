@@ -38,7 +38,7 @@ def to_note(result: dict, contact_id: str) -> Note:
     )
 
 
-def to_task(result: dict, contact_id: str, tz: ZoneInfo) -> Task:
+def to_task(result: dict, contact_id: str, timezone: ZoneInfo) -> Task:
     task_id = result["id"]
     properties = result["properties"]
     return Task(
@@ -46,7 +46,7 @@ def to_task(result: dict, contact_id: str, tz: ZoneInfo) -> Task:
         contact_id=contact_id,
         title=properties["hs_task_subject"],
         due_date=datetime.fromisoformat(properties["hs_timestamp"])
-        .astimezone(tz)
+        .astimezone(timezone)
         .date(),
     )
 
