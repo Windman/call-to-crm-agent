@@ -85,7 +85,7 @@ def build_system_prompt() -> str:
 
         STEP 1: FIND OR CREATE CONTACT
 
-        - Extract the contact's phone number from the transcript. Find_contact returns a list; an empty list means no match.
+        - Extract the contact's phone number from the transcript. find_contact returns a list; an empty list means no match.
         - Normalize the phone number whenever possible.
         - ALWAYS call find_contact first using the phone number.
         - If exactly one matching contact is found, use that existing contact.
