@@ -1,0 +1,96 @@
+from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
+
+import anthropic
+from dotenv import load_dotenv
+
+from call_to_crm_agent import build_system_prompt, fake_data
+from call_to_crm_agent.agent import run_agent
+
+TODAY = date(2026, 11, 17)  # вторник — фиксированное «сегодня» для всех кейсов
+RUNS = 3
+
+
+@dataclass
+class EvalCase:
+    name: str
+    transcript: Path
+    expect_new_contact: bool
+    expect_notes: int
+    expect_task_dates: list[date]
+
+
+CASES = [
+    EvalCase(
+        name="anna_new_contact",
+        transcript=Path("transcripts/anna_new_contact.txt"),
+        expect_new_contact=True,
+        expect_notes=1,
+        expect_task_dates=[
+            date(2026, 11, 17),
+            date(2026, 11, 19),
+        ],
+    ),
+    EvalCase(
+        name="john_acme_mismatch",
+        transcript=Path("transcripts/john_acme_mismatch.txt"),
+        expect_new_contact=False,
+        expect_notes=1,
+        expect_task_dates=[
+            date(2026, 11, 20),
+            date(2026, 11, 20),
+            date(2026, 11, 24),
+        ],
+    ),
+]
+
+
+def run_case(client: anthropic.Anthropic, case: EvalCase) -> dict[str, bool]:
+    crm = fake_data.build_fake_crm()
+    transcript = case.transcript.read_text(encoding="utf-8")
+
+    run_agent(
+        client,
+        crm,
+        build_system_prompt(TODAY),
+        transcript,
+    )
+
+    new_contact_created = len(crm.contacts) == 2
+    task_dates = sorted(task.due_date for task in crm.tasks)
+
+    if task_dates != case.expect_task_dates:
+        print(
+            f"DATES MISMATCH {case.name}: expected {case.expect_task_dates}, got {task_dates}"
+        )
+
+    return {
+        "contact": new_contact_created == case.expect_new_contact,
+        "notes": len(crm.notes) == case.expect_notes,
+        "dates": task_dates == case.expect_task_dates,
+    }
+
+
+def main() -> None:
+    load_dotenv()
+    client = anthropic.Anthropic()
+
+    summary = []
+
+    for case in CASES:
+        passed = {"contact": 0, "notes": 0, "dates": 0}
+        for _ in range(RUNS):
+            result = run_case(client, case)
+            for check, ok in result.items():
+                if ok:
+                    passed[check] += 1
+        summary.append((case.name, passed))
+
+    for name, passed in summary:
+        line = "  ".join(f"{check} {count}/{RUNS}" for check, count in passed.items())
+        print(f"{name:<22}{line}")
+
+
+if __name__ == "__main__":
+    main()

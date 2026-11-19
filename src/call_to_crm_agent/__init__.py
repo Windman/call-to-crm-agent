@@ -7,8 +7,8 @@ from pathlib import Path
 import anthropic
 from dotenv import load_dotenv
 
+from call_to_crm_agent import fake_data
 from call_to_crm_agent.agent import run_agent
-from call_to_crm_agent.crm import Contact, FakeCRM
 from call_to_crm_agent.hubspot import HubSpotClient, HubSpotCRM
 
 
@@ -24,7 +24,7 @@ def main() -> None:
     crm_type = os.environ.get("CRM", "hubspot")
 
     if crm_type == "fake":
-        crm = build_fake_crm()
+        crm = fake_data.build_fake_crm()
     elif crm_type == "hubspot":
         crm = build_hubspot_crm(os.environ.get("HUBSPOT_TOKEN"))
     else:
@@ -33,15 +33,15 @@ def main() -> None:
     run_agent(
         client,
         crm,
-        inspect.cleandoc(build_system_prompt()),
+        build_system_prompt(date.today()),
         transcript,
     )
 
 
-def build_system_prompt() -> str:
-    today = date.today().isoformat()
-    weekday = date.today().strftime("%A")
-    return f"""
+def build_system_prompt(today: date) -> str:
+    today_str = today.isoformat()
+    weekday = today.strftime("%A")
+    return inspect.cleandoc(f"""
         ROLE AND OBJECTIVE
 
         You are an autonomous CRM assistant responsible for processing call transcripts and recording all relevant information and outcomes in the CRM system.
@@ -56,7 +56,7 @@ def build_system_prompt() -> str:
 
         CURRENT DATE AND TIME CONTEXT
 
-        Today's date: {today}
+        Today's date: {today_str}
         Day of the week: {weekday}
 
         Use these values as the reference point when interpreting dates and deadlines.
@@ -210,7 +210,7 @@ def build_system_prompt() -> str:
 
         Keep the report concise and factual.
 
-        Only report actions that were successfully completed and confirmed by the CRM tools."""
+        Only report actions that were successfully completed and confirmed by the CRM tools.""")
 
 
 def build_hubspot_crm(token: str | None) -> HubSpotCRM:
@@ -218,18 +218,3 @@ def build_hubspot_crm(token: str | None) -> HubSpotCRM:
         sys.exit("No Hubspot token found")
 
     return HubSpotCRM(HubSpotClient(token=token))
-
-
-def build_fake_crm() -> FakeCRM:
-    return FakeCRM(
-        [
-            Contact(
-                id="1",
-                first_name="John",
-                last_name="Doe",
-                phone="+995555123456",
-                email="john.doe@example.com",
-                company="Example Inc.",
-            )
-        ]
-    )
