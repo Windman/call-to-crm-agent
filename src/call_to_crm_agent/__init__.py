@@ -165,7 +165,12 @@ def build_system_prompt(today: date) -> str:
         8. If no deadline is specified, assign a reasonable default deadline based on context and urgency.
         9. Document every assumed deadline in the final report.
         10. Never silently discard a commitment because its deadline is missing.
-        11. A preparation task for a scheduled event (demo, meeting, presentation, callback) is due 2 working days before the event, but never earlier than today. A task for the event itself is due on the event day.
+        11. For every scheduled event (demo, meeting, presentation), create two tasks:
+            - a preparation task (for example, send the invite or prepare materials), due 2 working days before the event;
+            - a task for the event itself, due on the event day.
+            A callback needs only its own task on the callback day. Any commitment that must be done before the callback (for example, sending a proposal) is a preparation task for the callback and is due 2 working days before it.
+            "2 working days before" means counting back two working days (Monday to Friday), not counting the event day. Examples: event on Friday → Wednesday; event on Monday → the previous Thursday.
+            Never set a preparation task earlier than today.
 
         If several commitments have different deadlines, create separate tasks with their respective due dates.
 
