@@ -13,6 +13,12 @@ RUNS = 3
 
 
 @dataclass
+class EvalCaseResult:
+    eval_result: dict[str, bool]
+    model_calls: int
+
+
+@dataclass
 class EvalCase:
     name: str
     transcript: Path
@@ -46,11 +52,11 @@ CASES = [
 ]
 
 
-def run_case(client: anthropic.Anthropic, case: EvalCase) -> dict[str, bool]:
+def run_case(client: anthropic.Anthropic, case: EvalCase) -> EvalCaseResult:
     crm = fake_data.build_fake_crm()
     transcript = case.transcript.read_text(encoding="utf-8")
 
-    run_agent(
+    messages = run_agent(
         client,
         crm,
         build_system_prompt(TODAY),
@@ -65,11 +71,19 @@ def run_case(client: anthropic.Anthropic, case: EvalCase) -> dict[str, bool]:
             f"DATES MISMATCH {case.name}: expected {case.expect_task_dates}, got {task_dates}"
         )
 
-    return {
-        "contact": new_contact_created == case.expect_new_contact,
-        "notes": len(crm.notes) == case.expect_notes,
-        "dates": task_dates == case.expect_task_dates,
-    }
+    model_calls_count = 0
+    for message in messages:
+        if message["role"] == "assistant":
+            model_calls_count += 1
+
+    return EvalCaseResult(
+        eval_result={
+            "contact": new_contact_created == case.expect_new_contact,
+            "notes": len(crm.notes) == case.expect_notes,
+            "dates": task_dates == case.expect_task_dates,
+        },
+        model_calls=model_calls_count,
+    )
 
 
 def main() -> None:
@@ -79,17 +93,21 @@ def main() -> None:
     summary = []
 
     for case in CASES:
+        model_calls_total_for_case = 0
         passed = {"contact": 0, "notes": 0, "dates": 0}
-        for _ in range(RUNS):
+        for i in range(1, RUNS + 1):
+            print(f"=== {case.name} run {i}/{RUNS} ===")
             result = run_case(client, case)
-            for check, ok in result.items():
+            model_calls_total_for_case += result.model_calls
+            print(f"Model calls: {result.model_calls}")
+            for check, ok in result.eval_result.items():
                 if ok:
                     passed[check] += 1
-        summary.append((case.name, passed))
+        summary.append((case.name, passed, model_calls_total_for_case))
 
-    for name, passed in summary:
+    for name, passed, model_calls_total in summary:
         line = "  ".join(f"{check} {count}/{RUNS}" for check, count in passed.items())
-        print(f"{name:<22}{line}")
+        print(f"{name:<22}{line}  calls avg {model_calls_total / RUNS:.1f}")
 
 
 if __name__ == "__main__":
