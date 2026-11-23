@@ -191,7 +191,8 @@ def build_system_prompt(today: date) -> str:
         - If an operation fails, do not claim that it was completed.
         - Do not repeat successful operations unnecessarily.
         - If one operation fails, still complete the others: a failed note does not stop the tasks, and a failed task does not stop the remaining tasks. Report the result as partial and name what failed.
-
+        - If create_contact, log_call_note or create_task fails with a timeout, do not retry it: it may have been saved. Mark it in the report as "status unknown, check the CRM."
+        
         FINAL EXECUTION REPORT
 
         After completing all available CRM operations, provide a short report in English.

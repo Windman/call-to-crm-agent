@@ -1,5 +1,7 @@
 import html
+from collections.abc import Callable
 from datetime import UTC, date, datetime, time
+from time import sleep as system_sleep
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -11,6 +13,8 @@ TASK_DUE_TIME = time(9)
 DEFAULT_TIMEZONE = ZoneInfo("Asia/Tbilisi")
 ASSOCIATIONTYPEID_NOTE = 202
 ASSOCIATIONTYPEID_TASK = 204
+MAX_ATTEMPTS = 3
+MAX_RETRY_DELAY = 10.0
 
 
 def to_contact(result: dict) -> Contact:
@@ -53,8 +57,14 @@ def to_task(result: dict, contact_id: str, timezone: ZoneInfo) -> Task:
 
 class HubSpotClient:
     client: httpx.Client
+    sleep: Callable[[float], None]
 
-    def __init__(self, token: str, transport: httpx.BaseTransport | None = None):
+    def __init__(
+        self,
+        token: str,
+        transport: httpx.BaseTransport | None = None,
+        sleep: Callable[[float], None] = system_sleep,
+    ):
         self.base_url = "https://api.hubapi.com"
         self.headers = {
             "Authorization": f"Bearer {token}",
@@ -66,6 +76,33 @@ class HubSpotClient:
             timeout=10.0,
             transport=transport,
         )
+
+        self.sleep = sleep
+
+    def _retry_delay(self, response: httpx.Response, attempt: int) -> float:
+        try:
+            return float(response.headers["Retry-After"])
+        except KeyError, ValueError:
+            return float(2**attempt)
+
+    def _post(self, url: str, payload: dict) -> httpx.Response:
+        response: httpx.Response | None = None
+
+        for attempt in range(MAX_ATTEMPTS):
+            response = self.client.post(url, json=payload)
+
+            if response.status_code != 429:
+                break
+
+            if attempt < MAX_ATTEMPTS - 1:
+                delay = self._retry_delay(response, attempt)
+                if delay > MAX_RETRY_DELAY:
+                    break
+                self.sleep(delay)
+
+        assert response is not None
+        raise_for_hubspot_error(response)
+        return response
 
     def search_contacts_by_phone(self, phone: str) -> list[dict]:
         url = "/crm/v3/objects/contacts/search"
@@ -85,16 +122,14 @@ class HubSpotClient:
             "limit": 5,
         }
 
-        response = self.client.post(url, json=payload)
-        raise_for_hubspot_error(response)
+        response = self._post(url, payload)
         return response.json().get("results", [])
 
     def create_contact(self, properties: dict[str, str]) -> dict:
         url = "/crm/v3/objects/contacts"
         payload = {"properties": properties}
 
-        response = self.client.post(url, json=payload)
-        raise_for_hubspot_error(response)
+        response = self._post(url, payload)
         return response.json()
 
     def create_call_note(self, contact_id: str, timestamp: str, note_body: str) -> dict:
@@ -113,8 +148,7 @@ class HubSpotClient:
                 }
             ],
         }
-        response = self.client.post(url, json=payload)
-        raise_for_hubspot_error(response)
+        response = self._post(url, payload)
         return response.json()
 
     def create_default_task(
@@ -140,8 +174,7 @@ class HubSpotClient:
                 }
             ],
         }
-        response = self.client.post(url, json=payload)
-        raise_for_hubspot_error(response)
+        response = self._post(url, payload)
         return response.json()
 
 

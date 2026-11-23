@@ -39,6 +39,10 @@ def handler_for_empty(request: httpx.Request) -> httpx.Response:
     return httpx.Response(500)
 
 
+def handler_for_429(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(429)
+
+
 def test_hubspot_409():
     client = HubSpotClient("test-token", transport=httpx.MockTransport(handler_for_409))
     hubspot_crm = HubSpotCRM(client)
@@ -72,6 +76,69 @@ def test_hubspot_empty():
 
     assert exc.value.status_code == 500
     assert "Empty response body" in exc.value.message
+
+
+def test_retries_after_429_then_succeeds():
+    calls = []
+    sleeps = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(429, headers={"Retry-After": "1"})
+        return httpx.Response(200, json={"results": []})
+
+    client = HubSpotClient(
+        "test-token", transport=httpx.MockTransport(handler), sleep=sleeps.append
+    )
+
+    assert client.search_contacts_by_phone("555123456") == []
+    assert len(calls) == 2
+    assert sleeps == [1.0]
+
+
+def test_gives_up_after_max_attempts():
+    calls = []
+    sleeps = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(429, json={"message": "Too many requests"})
+
+    client = HubSpotClient(
+        "test-token", transport=httpx.MockTransport(handler), sleep=sleeps.append
+    )
+
+    with pytest.raises(HubSpotError) as exc:
+        client.search_contacts_by_phone("555123456")
+
+    assert exc.value.status_code == 429
+    assert len(calls) == 3
+    assert sleeps == [1.0, 2.0]
+
+
+def test_does_not_wait_for_long_retry_after():
+    calls = []
+    sleeps = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(
+            429,
+            headers={"Retry-After": "3600"},
+            json={"message": "You have reached your daily limit."},
+        )
+
+    client = HubSpotClient(
+        "test-token", transport=httpx.MockTransport(handler), sleep=sleeps.append
+    )
+
+    with pytest.raises(HubSpotError) as exc:
+        client.search_contacts_by_phone("555123456")
+
+    assert "daily limit" in exc.value.message
+    assert len(calls) == 1
+    assert sleeps == []
 
 
 def test_to_contact():
