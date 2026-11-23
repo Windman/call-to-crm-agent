@@ -1,5 +1,8 @@
+from typing import Any
+
 import anthropic
 from anthropic.types import Message
+from pydantic import BaseModel
 
 from call_to_crm_agent.crm import CRM
 from call_to_crm_agent.tools import TOOLS, execute_tool
@@ -8,13 +11,28 @@ MODEL = "claude-sonnet-5-5"
 MAX_TOKENS = 4096
 
 
+class ToolStep(BaseModel):
+    tool: str
+    args: dict[str, Any]
+    result: str  # тот же текст, что видит модель
+    is_error: bool
+
+
+class AgentRun(BaseModel):
+    steps: list[ToolStep]
+    report: str
+    model_calls: int
+
+
 def run_agent(
     client: anthropic.Anthropic,
     crm: CRM,
     system_prompt: str,
     transcript: str,
     max_steps: int = 10,
-) -> list:
+) -> AgentRun:
+    steps: list[ToolStep] = []
+
     messages_history = [{"role": "user", "content": transcript}]
 
     for step in range(max_steps):
@@ -36,8 +54,18 @@ def run_agent(
                 print()
             if block.type == "tool_use":
                 print(f"Executing tool: '{block.name}' with args: '{block.input}'")
+
                 tool_result = execute_tool(crm, block.name, block.input)
                 tool_error = tool_result.is_error
+
+                steps.append(
+                    ToolStep(
+                        tool=block.name,
+                        args=block.input,
+                        result=tool_result.text,
+                        is_error=tool_error,
+                    )
+                )
 
                 if tool_error:
                     print(f"Tool error: {tool_result.text}")
@@ -56,7 +84,10 @@ def run_agent(
         print(f"step {step}: stop_reason={model_response.stop_reason}")
 
         if model_response.stop_reason != "tool_use":
-            return messages_history
+            report = "\n".join(
+                block.text for block in model_response.content if block.type == "text"
+            )
+            return AgentRun(steps=steps, report=report, model_calls=step + 1)
 
         messages_history.append({"role": "user", "content": tool_results})
 

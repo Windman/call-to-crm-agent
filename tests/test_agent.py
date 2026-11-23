@@ -23,3 +23,33 @@ def test_run_agent_stops_on_max_tokens(crm):
         run_agent(client, crm, system_prompt="test", transcript="test")  # type: ignore[arg-type]
 
     assert crm.notes == []
+
+
+def test_run_agent_returns_steps_and_report(crm):
+    responses = [
+        SimpleNamespace(
+            stop_reason="tool_use",
+            content=[
+                SimpleNamespace(
+                    type="tool_use",
+                    id="t1",
+                    name="find_contact",
+                    input={"phone": "+995555123456"},
+                )
+            ],
+        ),
+        SimpleNamespace(
+            stop_reason="end_turn",
+            content=[SimpleNamespace(type="text", text="Done.")],
+        ),
+    ]
+    client = SimpleNamespace(
+        messages=SimpleNamespace(create=lambda **kwargs: responses.pop(0))
+    )
+
+    run = run_agent(client, crm, system_prompt="test", transcript="test")  # type: ignore[arg-type]
+
+    assert run.model_calls == 2
+    assert run.report == "Done."
+    assert [s.tool for s in run.steps] == ["find_contact"]
+    assert run.steps[0].is_error is False

@@ -113,7 +113,7 @@ def run_case(client: anthropic.Anthropic, case: EvalCase) -> EvalCaseResult:
     crm = case.build_crm()
     transcript = case.transcript.read_text(encoding="utf-8")
 
-    messages = run_agent(
+    run = run_agent(
         client,
         crm,
         build_system_prompt(case.today),
@@ -129,11 +129,6 @@ def run_case(client: anthropic.Anthropic, case: EvalCase) -> EvalCaseResult:
         print(
             f"DATES MISMATCH {case.name}: expected {case.expect_task_dates}, got {task_dates}"
         )
-
-    model_calls_count = 0
-    for message in messages:
-        if message["role"] == "assistant":
-            model_calls_count += 1
 
     eval_result = {
         "contact": new_contact_created == case.expect_new_contact,
@@ -154,7 +149,7 @@ def run_case(client: anthropic.Anthropic, case: EvalCase) -> EvalCaseResult:
 
     return EvalCaseResult(
         eval_result=eval_result,
-        model_calls=model_calls_count,
+        model_calls=run.model_calls,
     )
 
 
