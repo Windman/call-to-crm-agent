@@ -1,10 +1,14 @@
 from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
+import httpx
 import pytest
 
 from call_to_crm_agent.hubspot import (
     DEFAULT_TIMEZONE,
+    HubSpotClient,
+    HubSpotCRM,
+    HubSpotError,
     from_hubspot_note_body,
     to_contact,
     to_hubspot_note_body,
@@ -13,6 +17,61 @@ from call_to_crm_agent.hubspot import (
     to_note,
     to_task,
 )
+from call_to_crm_agent.tools import execute_tool
+
+
+def handler_for_409(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(
+        409,
+        json={
+            "status": "error",
+            "message": "Contact already exists. Existing ID: 123",
+            "category": "CONFLICT",
+        },
+    )
+
+
+def handler_for_502(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(502, text="<html>" + "x" * 1000)
+
+
+def handler_for_empty(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(500)
+
+
+def test_hubspot_409():
+    client = HubSpotClient("test-token", transport=httpx.MockTransport(handler_for_409))
+    hubspot_crm = HubSpotCRM(client)
+    tool_result = execute_tool(
+        hubspot_crm,
+        "create_contact",
+        {"first_name": "Anna", "last_name": "Smirnova", "phone": "+995555123457"},
+    )
+    assert tool_result.is_error
+    assert "HubSpot 409" in tool_result.text
+    assert "Existing ID: 123" in tool_result.text
+
+
+def test_hubspot_502():
+    client = HubSpotClient("test-token", transport=httpx.MockTransport(handler_for_502))
+
+    with pytest.raises(HubSpotError) as exc:
+        client.create_contact({"firstname": "Shorena"})
+
+    assert exc.value.status_code == 502
+    assert len(exc.value.message) <= 303
+
+
+def test_hubspot_empty():
+    client = HubSpotClient(
+        "test-token", transport=httpx.MockTransport(handler_for_empty)
+    )
+
+    with pytest.raises(HubSpotError) as exc:
+        client.create_contact({"firstname": "Shorena"})
+
+    assert exc.value.status_code == 500
+    assert "Empty response body" in exc.value.message
 
 
 def test_to_contact():

@@ -54,14 +54,17 @@ def to_task(result: dict, contact_id: str, timezone: ZoneInfo) -> Task:
 class HubSpotClient:
     client: httpx.Client
 
-    def __init__(self, token: str):
+    def __init__(self, token: str, transport: httpx.BaseTransport | None = None):
         self.base_url = "https://api.hubapi.com"
         self.headers = {
             "Authorization": f"Bearer {token}",
         }
 
         self.client = httpx.Client(
-            base_url=self.base_url, headers=self.headers, timeout=10.0
+            base_url=self.base_url,
+            headers=self.headers,
+            timeout=10.0,
+            transport=transport,
         )
 
     def search_contacts_by_phone(self, phone: str) -> list[dict]:
@@ -83,7 +86,7 @@ class HubSpotClient:
         }
 
         response = self.client.post(url, json=payload)
-        response.raise_for_status()
+        raise_for_hubspot_error(response)
         return response.json().get("results", [])
 
     def create_contact(self, properties: dict[str, str]) -> dict:
@@ -91,7 +94,7 @@ class HubSpotClient:
         payload = {"properties": properties}
 
         response = self.client.post(url, json=payload)
-        response.raise_for_status()
+        raise_for_hubspot_error(response)
         return response.json()
 
     def create_call_note(self, contact_id: str, timestamp: str, note_body: str) -> dict:
@@ -111,7 +114,7 @@ class HubSpotClient:
             ],
         }
         response = self.client.post(url, json=payload)
-        response.raise_for_status()
+        raise_for_hubspot_error(response)
         return response.json()
 
     def create_default_task(
@@ -138,7 +141,7 @@ class HubSpotClient:
             ],
         }
         response = self.client.post(url, json=payload)
-        response.raise_for_status()
+        raise_for_hubspot_error(response)
         return response.json()
 
 
@@ -186,6 +189,36 @@ class HubSpotCRM:
         timestamp: str = to_hubspot_task_timestamp(due_date, self.timezone)
         result = self.client.create_default_task(contact_id, timestamp, title)
         return to_task(result, contact_id, self.timezone)
+
+
+class HubSpotError(Exception):
+    status_code: int
+    message: str
+
+    def __init__(self, status_code: int, message: str):
+        self.status_code = status_code
+        self.message = message
+        super().__init__(f"HubSpot {status_code}: {message}")
+
+
+def raise_for_hubspot_error(response: httpx.Response) -> None:
+    if response.is_success:
+        return
+
+    try:
+        data = response.json()
+        if isinstance(data, dict) and "message" in data:
+            error_msg = str(data["message"])
+        else:
+            error_msg = str(data)[:300]
+    except ValueError:
+        raw_text = response.text.strip()
+        if len(raw_text) > 300:
+            error_msg = raw_text[:300] + "..."
+        else:
+            error_msg = raw_text or "Empty response body"
+
+    raise HubSpotError(status_code=response.status_code, message=error_msg)
 
 
 def to_hubspot_timestamp(dt: datetime) -> str:

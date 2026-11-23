@@ -220,6 +220,6 @@ def build_system_prompt(today: date) -> str:
 
 def build_hubspot_crm(token: str | None) -> HubSpotCRM:
     if token is None:
-        sys.exit("No Hubspot token found")
+        sys.exit("No HubSpot token found")
 
     return HubSpotCRM(HubSpotClient(token=token))
