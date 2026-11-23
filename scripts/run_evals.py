@@ -35,6 +35,7 @@ class EvalCase:
     build_crm: Callable[[], FakeCRM]
     expect_name: tuple[str, str] | None = None
     expect_company: str | None = None
+    today: date = TODAY
 
 
 CASES = [
@@ -85,6 +86,26 @@ CASES = [
         expect_company="Example Inc.",
         build_crm=fake_data.build_fake_crm,
     ),
+    EvalCase(
+        name="john_thursday_callback",
+        transcript=Path("transcripts/john_thursday_callback.txt"),
+        expect_new_contact=False,
+        expect_notes=1,
+        expect_task_dates=[date(2026, 11, 26)],
+        expect_company="Example Inc.",
+        build_crm=fake_data.build_fake_crm,
+        today=date(2026, 11, 19),
+    ),
+    EvalCase(
+        name="john_no_agreements",
+        transcript=Path("transcripts/john_no_agreements.txt"),
+        expect_new_contact=False,
+        expect_notes=1,
+        expect_task_dates=[],
+        expect_company="Example Inc.",
+        build_crm=fake_data.build_fake_crm,
+        today=date(2026, 11, 19),
+    ),
 ]
 
 
@@ -95,7 +116,7 @@ def run_case(client: anthropic.Anthropic, case: EvalCase) -> EvalCaseResult:
     messages = run_agent(
         client,
         crm,
-        build_system_prompt(TODAY),
+        build_system_prompt(case.today),
         transcript,
     )
 
@@ -164,7 +185,8 @@ def main() -> None:
 
     for name, passed, model_calls_total in summary:
         line = "  ".join(f"{check} {count}/{RUNS}" for check, count in passed.items())
-        print(f"{name:<22}{line}  calls avg {model_calls_total / RUNS:.1f}")
+        name_width = max(len(name) for name, _, _ in summary) + 2
+        print(f"{name:<{name_width}}{line}  calls avg {model_calls_total / RUNS:.1f}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1 @@
+John Doe called, +995 555 123 456. He just wanted to confirm that he received the invoice we sent last week and that everything in it is correct. He said there is nothing else he needs from us at the moment.
