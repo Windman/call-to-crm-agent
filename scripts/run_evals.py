@@ -178,9 +178,10 @@ def main() -> None:
                     passed[check_name] += 1
         summary.append((case.name, passed, model_calls_total_for_case))
 
+    name_width = max(len(name) for name, _, _ in summary) + 2
+
     for name, passed, model_calls_total in summary:
         line = "  ".join(f"{check} {count}/{RUNS}" for check, count in passed.items())
-        name_width = max(len(name) for name, _, _ in summary) + 2
         print(f"{name:<{name_width}}{line}  calls avg {model_calls_total / RUNS:.1f}")
 
 
