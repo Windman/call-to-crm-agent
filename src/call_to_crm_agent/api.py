@@ -6,6 +6,7 @@ from typing import Annotated
 import anthropic
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from call_to_crm_agent import build_system_prompt, fake_data
@@ -15,6 +16,12 @@ from call_to_crm_agent.hubspot import HubSpotClient, HubSpotCRM
 
 load_dotenv()
 app = FastAPI(title="Call-to-CRM Agent")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 class RunRequest(BaseModel):
