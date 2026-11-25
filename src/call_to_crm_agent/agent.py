@@ -1,7 +1,7 @@
 from typing import Any
 
 import anthropic
-from anthropic.types import Message
+from anthropic.types import Message, MessageParam, ToolResultBlockParam
 from pydantic import BaseModel
 
 from call_to_crm_agent.crm import CRM
@@ -33,10 +33,10 @@ def run_agent(
 ) -> AgentRun:
     steps: list[ToolStep] = []
 
-    messages_history = [{"role": "user", "content": transcript}]
+    messages_history: list[MessageParam] = [{"role": "user", "content": transcript}]
 
     for step in range(max_steps):
-        tool_results = []
+        tool_results: list[ToolResultBlockParam] = []
         model_response = call_to_crm_agent(client, system_prompt, messages_history)
 
         if model_response.stop_reason == "max_tokens":
@@ -95,7 +95,7 @@ def run_agent(
 
 
 def call_to_crm_agent(
-    client: anthropic.Anthropic, system_prompt: str, messages: list
+    client: anthropic.Anthropic, system_prompt: str, messages: list[MessageParam]
 ) -> Message:
     model_response = client.messages.create(
         model=MODEL,

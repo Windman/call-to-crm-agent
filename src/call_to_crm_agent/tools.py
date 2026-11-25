@@ -2,6 +2,8 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import date
 
+from anthropic.types import ToolParam
+
 from call_to_crm_agent.crm import CRM
 
 
@@ -54,7 +56,7 @@ TOOL_FUNCTIONS = {
     "create_task": create_task,
 }
 
-TOOLS = [
+TOOLS: list[ToolParam] = [
     {
         "name": "find_contact",
         "description": "Find existing CRM contacts by phone number. Call this first, before create_contact, to avoid duplicates. Pass the phone number from the call, ideally with country code. Returns a JSON list of matching contacts; empty list if none",
