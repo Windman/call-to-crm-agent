@@ -1,10 +1,21 @@
 from types import SimpleNamespace
 
+import anthropic
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from call_to_crm_agent.agent import AgentRun
 from call_to_crm_agent.api import app, get_client, get_crm
+
+
+def use_failing_client(error: Exception):
+    def create(**kwargs):
+        raise error
+
+    app.dependency_overrides[get_client] = lambda: SimpleNamespace(
+        messages=SimpleNamespace(create=create)
+    )
 
 
 @pytest.fixture
@@ -48,3 +59,30 @@ def test_post_runs_returns_agent_run(api):
 def test_post_runs_without_transcript_returns_422(api):
     response = api.post("/runs", json={})
     assert response.status_code == 422
+
+
+def test_agent_failure_returns_json_500(api):
+    use_failing_client(RuntimeError("A stopped: max_tokens"))
+    response = api.post(
+        "/runs",
+        json={"transcript": "John called"},
+        headers={"Origin": "http://localhost:3000"},
+    )
+    assert (
+        response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    )
+    assert response.json()["detail"] == "A stopped: max_tokens"
+
+
+def test_llm_api_failure_returns_json_502(api):
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    use_failing_client(anthropic.APIConnectionError(request=request))
+    response = api.post(
+        "/runs",
+        json={"transcript": "John called"},
+        headers={"Origin": "http://localhost:3000"},
+    )
+    assert (
+        response.headers.get("access-control-allow-origin") == "http://localhost:3000"
+    )
+    assert response.json()["detail"] == "LLM API error: Connection error."

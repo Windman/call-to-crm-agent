@@ -26,7 +26,13 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        setError(`HTTP ${response.status}: ${await response.text()}`);
+        const responseJson = await response.json().catch(()=>null)
+        const details = responseJson?.detail
+        if (typeof  details === "string") {
+            setError(`HTTP ${response.status}: ${details}`);
+        } else {
+            setError(`HTTP ${response.status}: ${response.statusText}`);
+        }
       } else {
         // Put state → React re-render the page
         setRun((await response.json()) as AgentRun);

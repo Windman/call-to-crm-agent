@@ -5,8 +5,9 @@ from typing import Annotated
 
 import anthropic
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from call_to_crm_agent import build_system_prompt, fake_data
@@ -22,6 +23,18 @@ app.add_middleware(
     allow_methods=["POST"],
     allow_headers=["Content-Type"],
 )
+
+
+@app.exception_handler(RuntimeError)
+def handle_runtime_error(request: Request, exc: RuntimeError) -> JSONResponse:
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
+
+
+@app.exception_handler(anthropic.APIError)
+def handle_llm_api_error(request: Request, exc: anthropic.APIError) -> JSONResponse:
+    return JSONResponse(
+        status_code=502, content={"detail": f"LLM API error: {exc.message!s}"}
+    )
 
 
 class RunRequest(BaseModel):
