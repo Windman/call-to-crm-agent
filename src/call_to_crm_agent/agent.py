@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 import anthropic
@@ -30,6 +31,7 @@ def run_agent(
     system_prompt: str,
     transcript: str,
     max_steps: int = 10,
+    on_step: Callable[[ToolStep], None] | None = None,
 ) -> AgentRun:
     steps: list[ToolStep] = []
 
@@ -58,15 +60,17 @@ def run_agent(
                 tool_result = execute_tool(crm, block.name, block.input)
                 tool_error = tool_result.is_error
 
-                steps.append(
-                    ToolStep(
-                        tool=block.name,
-                        args=block.input,
-                        result=tool_result.text,
-                        is_error=tool_error,
-                    )
+                tool_step = ToolStep(
+                    tool=block.name,
+                    args=block.input,
+                    result=tool_result.text,
+                    is_error=tool_error,
                 )
 
+                steps.append(tool_step)
+
+                if on_step is not None:
+                    on_step(tool_step)
                 if tool_error:
                     print(f"Tool error: {tool_result.text}")
                 else:

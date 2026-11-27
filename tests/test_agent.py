@@ -53,3 +53,39 @@ def test_run_agent_returns_steps_and_report(crm):
     assert run.report == "Done."
     assert [s.tool for s in run.steps] == ["find_contact"]
     assert run.steps[0].is_error is False
+
+
+def test_run_agent_callback_steps(crm):
+    received = []
+
+    responses = [
+        SimpleNamespace(
+            stop_reason="tool_use",
+            content=[
+                SimpleNamespace(
+                    type="tool_use",
+                    id="t1",
+                    name="find_contact",
+                    input={"phone": "+995555123456"},
+                )
+            ],
+        ),
+        SimpleNamespace(
+            stop_reason="end_turn",
+            content=[SimpleNamespace(type="text", text="Done.")],
+        ),
+    ]
+    client = SimpleNamespace(
+        messages=SimpleNamespace(create=lambda **kwargs: responses.pop(0))
+    )
+
+    run = run_agent(
+        client,  # type: ignore[arg-type]
+        crm,
+        system_prompt="test",
+        transcript="test",
+        max_steps=10,
+        on_step=received.append,
+    )  # type: ignore[arg-type]
+
+    assert received == run.steps
