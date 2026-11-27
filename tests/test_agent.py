@@ -86,6 +86,5 @@ def test_run_agent_callback_steps(crm):
         transcript="test",
         max_steps=10,
         on_step=received.append,
-    )  # type: ignore[arg-type]
-
+    )
     assert received == run.steps

@@ -86,3 +86,21 @@ def test_llm_api_failure_returns_json_502(api):
         response.headers.get("access-control-allow-origin") == "http://localhost:3000"
     )
     assert response.json()["detail"] == "LLM API error: Connection error."
+
+
+def test_stream_sends_steps_then_done(api):
+    response = api.post("/runs/stream", json={"transcript": "John called"})
+
+    assert response.status_code == 200
+    # Starlette дописывает "; charset=utf-8", поэтому startswith, а не ==
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert response.text.count("event: step") == 1
+    assert response.text.index("event: step") < response.text.index("event: done")
+
+
+def test_stream_reports_error_as_event(api):
+    use_failing_client(RuntimeError("boom"))
+    response = api.post("/runs/stream", json={"transcript": "John called"})
+
+    assert response.status_code == 200
+    assert 'event: error\ndata: {"detail": "boom"}' in response.text
